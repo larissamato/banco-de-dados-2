@@ -1,0 +1,41 @@
+﻿-- Exemplo 2
+
+-- Criando a tabela de auditoria
+CREATE TABLE musica_auditoria (
+	id SERIAL,
+	idMusica 	INTEGER NOT NULL,
+	oldNomeMusica 	VARCHAR(60) DEFAULT NULL,
+	newNomeMusica 	VARCHAR(60) DEFAULT NULL,
+	oldDuracao 	TIME DEFAULT NULL,
+	newDuracao 	TIME DEFAULT NULL,
+	dataevento 	TIMESTAMP DEFAULT NULL,
+	acao 		VARCHAR(50) DEFAULT NULL,
+	PRIMARY KEY (id) 
+);
+
+-- Criando a função do tipo gatilho
+CREATE OR REPLACE FUNCTION auditoria_musica_update()
+RETURNS trigger AS $$
+BEGIN
+	INSERT INTO musica_auditoria( idMusica, oldNomeMusica, newNomeMusica, oldduracao, newduracao, dataevento, acao)
+	VALUES ( OLD . IdMusica, OLD.NomeMusica, NEW.NomeMusica, OLD.duracao, NEW.duracao, NOW(), 'update');
+	RETURN NEW;
+END;$$
+LANGUAGE plpgsql;
+
+-- Criando o gatilho com a função que deve ser executada
+CREATE TRIGGER musica_update
+BEFORE UPDATE
+ON musica
+FOR EACH ROW
+EXECUTE PROCEDURE auditoria_musica_update();
+
+-- Testando o funcionamento do gatilho
+SELECT * FROM musica where idmusica = 1;
+SELECT * FROM musica_auditoria;
+
+UPDATE musica
+SET NomeMusica = 'Vai dar tudo certo !'
+WHERE idMusica = 1;
+
+SELECT * FROM musica_auditoria;

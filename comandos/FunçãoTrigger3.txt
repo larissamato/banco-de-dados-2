@@ -1,0 +1,56 @@
+CREATE DATABASE trigger;
+
+DROP TABLE empregado;
+CREATE TABLE empregado(
+	nome_empregado text,
+	salario float,
+	ultima_data timestamp,
+	ultimo_usuario text
+);
+
+CREATE OR REPLACE FUNCTION emp_gatilho() RETURNS TRIGGER AS 
+$$
+BEGIN
+    RAISE NOTICE 'O comando que disparou o trigger foi %', TG_OP;
+	RAISE NOTICE 'O nome da table é %', TG_TABLE_NAME;
+	RAISE NOTICE 'o número de parâmetros são : %', TG_NARGS; 
+	RAISE NOTICE 'o primeiro parâmetro é : %', TG_ARGV[0];
+	RAISE NOTICE 'o segundo parâmetro é : %', TG_ARGV[1];
+	
+	IF NEW.nome_empregado IS NULL THEN
+		RAISE NOTICE 'O parâmetro nome_empregado não pode ser nulo !';
+		RETURN OLD;
+	END IF;
+	
+	IF NEW.salario IS NULL THEN 
+		RAISE NOTICE 'O salário não pode ser nulo';
+		RETURN OLD;
+	END IF;
+	NEW.ultima_data := now();
+	NEW.ultimo_usuario := current_user;
+	RETURN NEW;
+END;
+$$
+LANGUAGE PLPGSQL;
+
+
+CREATE OR REPLACE TRIGGER emp_gatilho
+BEFORE INSERT OR UPDATE
+ON empregado
+FOR EACH ROW
+EXECUTE PROCEDURE emp_gatilho('Cargo','Professor');
+
+INSERT INTO empregado (nome_empregado) VALUES ('Dory');
+INSERT INTO empregado (salario) VALUES (1000.00);
+INSERT INTO empregado (nome_empregado, salario) VALUES ('Dory', 1000.00);
+
+UPDATE empregado SET nome_empregado = 'Caroline' WHERE salario = 1000.00 ;
+
+TRUNCATE empregado;
+SELECT * FROM empregado;
+
+
+
+
+
+

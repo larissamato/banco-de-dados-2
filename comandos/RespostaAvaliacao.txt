@@ -1,0 +1,146 @@
+-- 1) Crie uma função que receba três valores, 
+-- sendo: o primeiro o tamanho do passo, o segundo o valor inicial e
+-- o terceiro o valor final. 
+-- Retorne os valores compreendidos entre o valor inicial e final, 
+-- conforme o passo.
+
+CREATE OR REPLACE FUNCTION contagem (passo int, vi int, vf int) 
+RETURNS SETOF int AS
+$$
+DECLARE
+	cont int;
+BEGIN
+		FOR cont IN vi..vf BY passo LOOP
+			RETURN NEXT cont;
+		END LOOP;
+		RETURN;
+END
+$$
+LANGUAGE PLPGSQL;
+SELECT contagem(3,1,10);
+
+
+-- 2. Construa a tabela Conta (num, nome, saldo). 
+-- Faça uma função que receba o número da conta de origem, 
+-- o número da conta destino e o valor da transferência. 
+-- Verifique se a conta origem possui saldo para realizar a
+-- transferência. Se sim, a função deve atualizar os saldos. 
+-- Retorne a mensagem se a transferência foi realizada com sucesso ou não. 
+CREATE TABLE conta(
+	num SERIAL,
+	nome VARCHAR,
+	saldo float
+); 
+INSERT INTO conta (nome, saldo) VALUES ('Dory', 12000),('Carol',500);
+
+CREATE FUNCTION transferencia ( nOrig int, nDest int , valor float)
+RETURNS text AS
+$$
+DECLARE 
+	saldoOrig float;
+BEGIN
+	SELECT saldo INTO saldoOrig FROM conta WHERE num = nOrig; 
+	IF (saldoOrig >= valor) THEN
+		UPDATE conta SET saldo = saldo - valor WHERE num = nOrig;
+		UPDATE conta SET saldo = saldo + valor WHERE num = nDest;
+		RETURN 'Transferencia realizada com sucesso!';
+	ELSE
+		RETURN 'Saldo Insuficiente!';
+	END IF;
+END
+$$
+LANGUAGE PLPGSQL;
+SELECT transferencia(1, 2, 2000);
+SELECT transferencia(1, 2, 11000);
+SELECT * FROM conta;
+
+-- 3. Utilizando o banco de dados "Loja de Cd's". 
+-- Faça uma função que receba um número que será utilizado como 
+-- a quantidade de autores que deverão ser apresentados. 
+-- A função deve retornar o id e o nome do autor.
+CREATE TYPE rg1 AS (id int, nome VARCHAR);
+CREATE OR REPLACE FUNCTION lista_n (qtde int) RETURNS SETOF rg1 AS
+$$
+BEGIN
+	RETURN QUERY SELECT idautor, nome_autor FROM autor LIMIT qtde;
+END
+$$
+LANGUAGE PLPGSQL;
+
+SELECT * FROM lista_n(2);
+
+-- 4. Considerando os intervalos de valores contidos na tabela 
+-- "cd_categoria" no banco de dados "Loja CD's". Crie uma função que 
+-- retorne a quantidade de cds por categoria. 
+-- Substitua o idcategoria pela descrição apresentada abaixo:
+-- idcategoria         descrição
+-- 1                         bronze
+-- 2                         prata
+-- 3                         ouro
+-- 4                         platina
+CREATE TYPE rg2 AS (categoria text, qtde bigint);
+CREATE OR REPLACE FUNCTION qtde_cds_categoria() RETURNS SETOF rg2 AS
+$$
+BEGIN
+	  RETURN QUERY  SELECT CASE 
+	   		                   WHEN idcategoria = 1 THEN 'Bronze'
+			                   WHEN idcategoria = 2 THEN 'Prata'
+			                   WHEN idcategoria = 3 THEN 'Ouro'
+			                   WHEN idcategoria = 4 THEN 'Platina'
+			               END categoria, 
+	                       COUNT(preco_venda) AS QTDE 
+	     FROM cd , cd_categoria
+		 WHERE preco_venda BETWEEN menor_preco AND maior_preco
+		 GROUP BY idcategoria
+	 ORDER BY idcategoria;
+END
+$$
+LANGUAGE PLPGSQL;
+
+SELECT * FROM qtde_cds_categoria();
+
+-- 5) Faça uma consulta que mostre a média de preço dos cds por cd_categoria
+
+SELECT idcategoria, 
+	    ROUND(AVG(preco_venda),2) AS Media 
+	    FROM cd , cd_categoria
+	   WHERE preco_venda BETWEEN menor_preco AND maior_preco
+    GROUP BY idcategoria
+    ORDER BY idcategoria;
+
+SELECT ct.idcategoria, (
+						SELECT ROUND(AVG(preco_venda),2) 
+						  FROM cd
+						  WHERE preco_venda 
+	                    BETWEEN ct.menor_preco AND ct.maior_preco
+					   )
+  FROM cd_categoria ct
+
+-- 6) Faça uma consulta que retorne o nome da gravadora, 
+-- o nome do cd e a quantidade de faixas do cd que possui 
+-- a quantidade de músicas acima da média dos cds;
+
+SELECT nomegravadora, nome_cd, count(numero_faixa) AS qtdef
+FROM gravadora 
+NATURAL JOIN cd
+NATURAL JOIN faixa
+GROUP BY nomegravadora, nome_cd
+HAVING count(numero_faixa) > (SELECT AVG(f.qtde)
+                              FROM (SELECT COUNT(idcd) AS qtde
+                              		  FROM faixa
+							      GROUP BY idcd) AS f)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
